@@ -633,3 +633,226 @@ export const adminJsResources: ResourceWithOptions[] = [
 ```
 
 - Faça o teste pelo painel de administração e veja que é possível cadastrar categorias e cadastrar cursos ligados a uma determinada categoria.
+
+## 6 - Criando Seeders
+
+- Para criarmos seeders para preencher nossas tabelas automaticamente podemos fazer como nas migrations. Gere o seeder com o comando abaixo:
+
+```javascript
+npx sequelize-cli seed:generate --name seed-categories-table
+```
+
+- Agora vamos preencher o seeder da tabela categories:
+  - Obs.: O seeder utiliza a mesma estrutura da migration, um objeto com um método up para quando for executar e um método down para quando for reverter os seeds.
+
+```javascript
+// src/database/seeders/XXXXXXXXXXXXXX-seed-categories-table.js
+
+"use strict";
+
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.bulkInsert(
+      "categories",
+      [
+        {
+          name: "Tecnologias Back-end",
+          position: 1,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        {
+          name: "Tecnologias Front-end",
+          position: 2,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        {
+          name: "Ferramentas de Desenvolvimento",
+          position: 3,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        {
+          name: "Soft-skills",
+          position: 4,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+        {
+          name: "Carreira",
+          position: 5,
+          created_at: new Date(),
+          updated_at: new Date(),
+        },
+      ],
+      {}
+    );
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.bulkDelete("categories", null, {});
+  },
+};
+```
+
+- Depois disso vamos criar um seeder para a tabela courses:
+
+```javascript
+npx sequelize-cli seed:generate --name seed-courses-table
+```
+
+- Depois disso vamos criar um seeder para a tabela courses:
+
+```javascript
+npx sequelize-cli seed:generate --name seed-courses-table
+```
+
+- E então vamos adicionar o seu conteúdo, primeiro obtendo as categorias existentes e então criando cursos para cada uma delas:
+
+```javascript
+// src/database/seeders/XXXXXXXXXXXXXX-seed-courses-table.js
+
+"use strict";
+
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    const [categories] = await queryInterface.sequelize.query(
+      "SELECT id FROM categories;"
+    );
+
+    await queryInterface.bulkInsert("courses", [
+      {
+        name: "Programador Full-stack Javascript",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        featured: true,
+        category_id: categories[0].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Dominando a Linguagem Ruby",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        category_id: categories[0].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Micro-serviços com Node.js",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        featured: true,
+        category_id: categories[0].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Criando APIs Profissionais com Ruby on Rails",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        featured: true,
+        category_id: categories[0].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "TDD na Prática: Testando APIs Node.js",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        featured: true,
+        category_id: categories[0].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "TDD na Prática: Testando Aplicações React",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        featured: true,
+        category_id: categories[1].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Especialista Front-end: Vue.js",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        category_id: categories[1].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Criando Sites e Apps 3D com Three.js",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        category_id: categories[1].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Dominando o Bootstrap 5",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        category_id: categories[1].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Visual Studio Code para Programadores Javascript",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        category_id: categories[2].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Comandos do Terminal Linux: Um Guia Completo",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        category_id: categories[2].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Comunicação e Trabalho em Equipe",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        category_id: categories[3].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "Programador Nômade",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        featured: true,
+        category_id: categories[4].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+      {
+        name: "O Guia do Programador Freelancer",
+        synopsis:
+          "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.",
+        category_id: categories[4].id,
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    ]);
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.bulkDelete("courses", null, {});
+  },
+};
+```
+
+- Por fim, só precisamos rodar os seeder com o comando:
+
+```javascript
+npx sequelize-cli db:seed:all
+```
+
+- Esses seeds não irão incluir as capas dos cursos, mas você pode fazer isso através do painel do AdminJS.
