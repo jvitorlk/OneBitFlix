@@ -431,3 +431,205 @@ import { adminJsResources } from './resources'
 ```bash
 npm run dev
 ```
+
+## 5 - Relacionamentos entre Modelos
+
+Nessa aula vamos fazer um procedimento parecido com o da última aula, mas vamos criar também a primeira associação entre tabelas/modelos.
+
+- Crie a migration para a tabela courses:
+
+```javascript
+// No terminal
+npx sequelize-cli migration:generate --name create-courses-table
+```
+
+- Adicione o conteúdo da migration:
+  - Obs.: Destaque para a definição da chave estrangeira.
+
+```typescript
+// src/database/migrations/XXXXXXXXXXXXXX-create-titles-table.js
+
+"use strict";
+
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable("courses", {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.DataTypes.INTEGER,
+      },
+      name: {
+        allowNull: false,
+        type: Sequelize.DataTypes.STRING,
+      },
+      synopsis: {
+        allowNull: false,
+        type: Sequelize.DataTypes.TEXT,
+      },
+      thumbnail_url: {
+        type: Sequelize.DataTypes.STRING,
+      },
+      featured: {
+        defaultValue: false,
+        type: Sequelize.DataTypes.BOOLEAN,
+      },
+      category_id: {
+        allowNull: false,
+        type: Sequelize.DataTypes.INTEGER,
+        references: { model: "categories", key: "id" },
+        onUpdate: "CASCADE",
+        onDelete: "RESTRICT",
+      },
+      created_at: {
+        allowNull: false,
+        type: Sequelize.DataTypes.DATE,
+      },
+      updated_at: {
+        allowNull: false,
+        type: Sequelize.DataTypes.DATE,
+      },
+    });
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable("courses");
+  },
+};
+```
+
+- Crie o model Course.ts:
+  - Obs.: Aqui já dá pra ver que no model nós usamos camelCase ao invés de snake_case como no banco de dados.
+
+```typescript
+// src/models/Course.ts
+
+import { sequelize } from "../database";
+import { DataTypes, Model, Optional } from "sequelize";
+
+export interface Course {
+  id: number;
+  name: string;
+  synopsis: string;
+  thumbnailUrl: string;
+  featured: boolean;
+  categoryId: number;
+}
+
+export interface CourseCreationAttributes
+  extends Optional<Course, "id" | "thumbnailUrl" | "featured"> {}
+
+export interface CourseInstance
+  extends Model<Course, CourseCreationAttributes>,
+    Course {}
+
+export const Course = sequelize.define<CourseInstance, Course>("Course", {
+  id: {
+    allowNull: false,
+    autoIncrement: true,
+    primaryKey: true,
+    type: DataTypes.INTEGER,
+  },
+  name: {
+    allowNull: false,
+    type: DataTypes.STRING,
+  },
+  synopsis: {
+    allowNull: false,
+    type: DataTypes.TEXT,
+  },
+  thumbnailUrl: {
+    type: DataTypes.STRING,
+  },
+  featured: {
+    defaultValue: false,
+    type: DataTypes.BOOLEAN,
+  },
+  categoryId: {
+    allowNull: false,
+    type: DataTypes.INTEGER,
+    references: { model: "categories", key: "id" },
+    onUpdate: "CASCADE",
+    onDelete: "RESTRICT",
+  },
+});
+```
+
+- Adicione o model Course ao index.ts da pasta models e os relacionamentos entre Category e Course:
+
+```typescript
+// src/models/index.ts
+
+import { Category } from "./Category";
+import { Course } from "./Course";
+
+Category.hasMany(Course);
+
+Course.belongsTo(Category);
+
+export { Course, Category };
+```
+
+- Crie o arquivo de opções do resource course.ts:
+  - Obs.: A propriedade “uploadThumbnail” ainda não existe, mas ela servirá para representar o input de upload no formulário. Incluiremos ela no futuro.
+
+```typescript
+// src/adminjs/resources/course.ts
+
+import { ResourceOptions } from "adminjs";
+
+export const courseResourceOptions: ResourceOptions = {
+  navigation: "Catálogo",
+  editProperties: [
+    "name",
+    "synopsis",
+    "uploadThumbnail",
+    "featured",
+    "categoryId",
+  ],
+  filterProperties: [
+    "name",
+    "synopsis",
+    "featured",
+    "categoryId",
+    "createdAt",
+    "updatedAt",
+  ],
+  listProperties: ["id", "name", "featured", "categoryId"],
+  showProperties: [
+    "id",
+    "name",
+    "synopsis",
+    "featured",
+    "thumbnailUrl",
+    "categoryId",
+    "createdAt",
+    "updatedAt",
+  ],
+};
+```
+
+- E o inclua em resources.ts:
+
+```typescript
+// src/adminjs/resources.ts
+
+import { ResourceWithOptions } from "adminjs";
+import { Category, Course } from "../../models";
+import { categoryResourceOptions } from "./category";
+import { courseResourceOptions } from "./course";
+
+export const adminJsResources: ResourceWithOptions[] = [
+  {
+    resource: Course,
+    options: courseResourceOptions,
+  },
+  {
+    resource: Category,
+    options: categoryResourceOptions,
+  },
+];
+```
+
+- Faça o teste pelo painel de administração e veja que é possível cadastrar categorias e cadastrar cursos ligados a uma determinada categoria.
