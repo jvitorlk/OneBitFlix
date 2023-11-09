@@ -65,7 +65,7 @@ app.listen(PORT, () => {
 }
 ```
 
-Explicação para cada opção no tsconfig.json: https://www.typescriptlang.org
+Explicação para cada opção no tsconfig.json: [https://www.typescriptlang.org](https://www.typescriptlang.org)
 
 - Ao executar a aplicação deve estar funcionando:
 
@@ -176,3 +176,76 @@ app.listen(PORT, () => {
   console.log(`Server started successfuly at port ${PORT}.`);
 });
 ```
+
+## 3 - Configurando o Painel do AdminJS
+
+Nessa aula vamos colocar o painel do AdminJS para funcionar.
+
+- Crie a pasta “adminjs” dentro de “src” e o arquivo index.ts dentro dela contendo o registro do adapter do sequelize e a criação de um router a partir de uma instância da classe AdminJs:
+  - Obs.: Aqui é legal mostrar que o Typescript ajuda no autocomplete das opções, o que é muito útil.
+
+```typescript
+// src/adminjs/index.ts
+
+import AdminJs from "adminjs";
+import AdminJsExpress from "@adminjs/express";
+import AdminJsSequelize from "@adminjs/sequelize";
+import { sequelize } from "../database";
+
+AdminJs.registerAdapter(AdminJsSequelize);
+
+export const adminJs = new AdminJs({
+  databases: [sequelize],
+  rootPath: "/admin",
+  branding: {
+    companyName: "OneBitFlix",
+    logo: "/onebitflix.svg",
+    theme: {
+      colors: {
+        primary100: "#ff0043",
+        primary80: "#ff1a57",
+        primary60: "#ff3369",
+        primary40: "#ff4d7c",
+        primary20: "#ff668f",
+        grey100: "#151515",
+        grey80: "#333333",
+        grey60: "#4d4d4d",
+        grey40: "#666666",
+        grey20: "#dddddd",
+        filterBg: "#333333",
+        accent: "#151515",
+        hoverBg: "#151515",
+      },
+    },
+  },
+});
+
+export const adminJsRouter = AdminJsExpress.buildRouter(adminJs);
+```
+
+- Crie uma pasta public na raiz do projeto e dentro dela adicione o arquivo do logo onebitflix.svg.
+- No arquivo server.ts adicione o middleware de arquivos estáticos do express e o router do AdminJS que criamos:
+
+```typescript
+import express from "express";
+import { database } from "./database";
+import { adminJs, adminJsRouter } from "./config/adminjs";
+
+const app = express();
+
+app.use(express.static("public"));
+
+app.use(adminJs.options.rootPath, adminJsRouter);
+
+const PORT = process.env.port || 3000;
+
+app.listen(PORT, async () => {
+  await database.authenticate().then(() => {
+    console.log("DB connection successfull.");
+  });
+
+  console.log(`Server started successfuly at port ${PORT}.`);
+});
+```
+
+- Teste acessando o endereço [http://localhost:3000/admin](http://localhost:3000/admin)
