@@ -249,3 +249,185 @@ app.listen(PORT, async () => {
 ```
 
 - Teste acessando o endereço [http://localhost:3000/admin](http://localhost:3000/admin)
+
+## 4 - Criando o Primeiro Resource
+
+Nessa aula vamos criar nosso primeiro recurso. Para isso vamos seguir um passo a passo que será repetido muitas vezes durante o desenvolvimento, criar a migration, rodar a migration, criar o model, depois incluir o model no arquivo de associações e então incluir suas opções no AdminJs
+
+- Em primeiro lugar, crie a migration responsável por criar/excluir a tabela “categories”:
+
+```typescript
+npx sequelize-cli migration:generate --name create-categories-table
+```
+
+- Isso criará um arquivo JS na pasta migrations com uma timestamp de criação. Adicione o código para criar e excluir a tabela nos métodos up e down respectivamente:
+  - Obs.: Repare que na criação da tabela precisamos especificar todas as colunas no padrão snake_case, incluindo as timestamps.
+
+```typescript
+// src/database/migrations/XXXXXXXXXXXXXX-create-categories-table
+
+"use strict";
+
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable("categories", {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.DataTypes.INTEGER,
+      },
+      name: {
+        allowNull: false,
+        type: Sequelize.DataTypes.STRING,
+      },
+      position: {
+        allowNull: false,
+        unique: true,
+        type: Sequelize.DataTypes.INTEGER,
+      },
+      created_at: {
+        allowNull: false,
+        type: Sequelize.DataTypes.DATE,
+      },
+      updated_at: {
+        allowNull: false,
+        type: Sequelize.DataTypes.DATE,
+      },
+    });
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable("categories");
+  },
+};
+```
+
+- Execute as migrations através da sequelize-cli:
+
+```typescript
+npx sequelize-cli db:migrate
+```
+
+- Opcionalmente, acesse o banco de dados para verificar que as tabelas foram criadas:
+
+```typescript
+sudo -u postgres psql -d onebitflix_development
+
+\dt
+```
+
+- Crie um arquivo chamado Category.ts na pasta models. Adicione as interfaces necessárias nele e a parte de criação do model:
+  - Obs.: O sequelize permite declarar models usando classes ou a função “define()”, optaremos pela abordagem funcional.
+  - Obs².: Nesse caso, a forma como o sequelize trabalha com typescript exige a criação de algumas interfaces específicas. Seus nomes são arbitrários, mas a documentação segue o seguinte formato:
+    - ModelAttributes - para todos os atributos do model (timestamps são inclusas automaticamente)
+    - ModelCreationAttributes - para os atributos usados na instanciação do model, ou seja, o id é especificado aqui como opcional porque ele não existe inicialmente. Também é possível especificar outras propriedades opcionais utilizando | (union type).
+    - ModelInstance - uma interface para a instancia do model. Nessa interface também é possível definir dentro das chaves atributos e métodos extras manualmente para o typescript reconheça na instância. Por enquanto as chaves podem ficar vazias, mas faremos isso mais a frente.
+  - Obs³.: No define() utilizamos os _generics_ usando essas interfaces que criamos para indicar quais serão as propriedades do model.
+
+```typescript
+// src/models/Category.ts
+
+import { sequelize } from "../database";
+import { DataTypes, Model, Optional } from "sequelize";
+
+export interface Category {
+  id: number;
+  name: string;
+  position: number;
+}
+
+export interface CategoryCreationAttributes extends Optional<Category, "id"> {}
+
+export interface CategoryInstance
+  extends Model<Category, CategoryCreationAttributes>,
+    Category {}
+
+export const Category = sequelize.define<CategoryInstance, Category>(
+  "Category",
+  {
+    id: {
+      allowNull: false,
+      autoIncrement: true,
+      primaryKey: true,
+      type: DataTypes.INTEGER,
+    },
+    name: {
+      allowNull: false,
+      type: DataTypes.STRING,
+    },
+    position: {
+      allowNull: false,
+      unique: true,
+      type: DataTypes.INTEGER,
+    },
+  }
+);
+```
+
+- Crie um arquivo index.ts na pasta models. Por enquanto ele não terá muito conteúdo, mas iremos tratar as associações nesse arquivo e sempre importaremos os models a partir dele:
+
+```typescript
+// src/models/index.ts
+
+import { Category } from "./Category";
+
+export { Category };
+```
+
+- Crie na pasta adminjs uma pasta resources. Dentro de resources crie um arquivo category.ts:
+  - Obs.: Nesse objeto resourceOptions vamos definir as configurações do model dentro do AdminJS, como quais campos estão presentes no formulário, na tabela de visualização, em qual grupo na barra lateral ele vai estar, etc.
+
+```typescript
+// src/adminjs/resources/category.ts
+
+import { ResourceOptions } from "adminjs";
+
+export const categoryResourceOptions: ResourceOptions = {
+  navigation: "Catálogo",
+  editProperties: ["name", "position"],
+  filterProperties: ["name", "position", "createdAt", "updatedAt"],
+  listProperties: ["id", "name", "position"],
+  showProperties: ["id", "name", "position", "createdAt", "updatedAt"],
+};
+```
+
+- Ainda na pasta resources, crie um arquivo index.ts:
+  - Obs.: Esse arquivo é um array de todas as opções de models que vamos definir. Ele serve apenas para deixar mais organizado.
+
+```typescript
+// src/adminjs/resources/index.ts
+
+import { ResourceWithOptions } from "adminjs";
+import { Category } from "../../models";
+import { categoryResourceOptions } from "./category";
+
+export const adminJsResources: ResourceWithOptions[] = [
+  {
+    resource: Category,
+    options: categoryResourceOptions,
+  },
+];
+```
+
+- Inclua os resources no arquivo de configuração em config/adminjs.ts:
+
+```typescript
+// src/adminjs/index.ts
+
+// ...
+import { database } from '../database'
+import { adminJsResources } from './resources'
+
+// ...
+	databases: [database],
+  resources: adminJsResources,
+  rootPath: '/admin',
+//...
+```
+
+- Teste verificando que o recurso já pode ser gerenciado pelo painel de administração:
+
+```bash
+npm run dev
+```
