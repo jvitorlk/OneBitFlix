@@ -2045,3 +2045,123 @@ return (
 
 // ...
 ```
+
+## 14 - Refatorando as Configurações do AdminJS
+
+- O AdminJS já está pronto para usarmos em nossa aplicação, mas o arquivo de configuração da forma que está pode ser melhorado. Vamos separar algumas configurações específicas movendo-as para a pasta adminjs.
+- Vamos começar pela propriedade dashboard do arquivo de configuração. Mova o seu conteúdo para um arquivo dashboard.ts na pasta adminjs e exporte-o:
+
+```typescript
+// src/adminjs/dashboard.ts
+
+import AdminJs, { PageHandler } from "adminjs";
+import { Category, Course, Episode, User } from "../models";
+
+export const dashboardOptions: {
+  handler?: PageHandler;
+  component?: string;
+} = {
+  component: AdminJs.bundle("../adminjs/components/Dashboard"),
+  handler: async (req, res, context) => {
+    const courses = await Course.count();
+    const episodes = await Episode.count();
+    const category = await Category.count();
+    const standardUsers = await User.count({ where: { role: "user" } });
+
+    res.json({
+      Cursos: courses,
+      Episódios: episodes,
+      Categorias: category,
+      "Usuários Padrão": standardUsers,
+    });
+  },
+};
+```
+
+- Vamos fazer o mesmo com a propriedade branding. Mova o seu conteúdo para um arquivo branding.ts na pasta adminjs e exporte-o:
+
+```typescript
+// src/adminjs/branding.ts
+
+import { BrandingOptions } from "adminjs";
+
+export const brandingOptions: BrandingOptions = {
+  companyName: "OneBitFlix",
+  logo: "/onebitflix.svg",
+  theme: {
+    colors: {
+      primary100: "#ff0043",
+      primary80: "#ff1a57",
+      primary60: "#ff3369",
+      primary40: "#ff4d7c",
+      primary20: "#ff668f",
+      grey100: "#151515",
+      grey80: "#333333",
+      grey60: "#4d4d4d",
+      grey40: "#666666",
+      grey20: "#dddddd",
+      filterBg: "#333333",
+      accent: "#151515",
+      hoverBg: "#151515",
+    },
+  },
+};
+```
+
+- Por fim, faça o mesmo com as opções de autenticação utilizadas na construção do router. Crie um arquivo authentication.ts na pasta adminjs, adicione o objeto com as opções e exporte-o:
+
+```typescript
+// src/adminjs/authentication.ts
+
+import { AuthenticationOptions } from "@adminjs/express";
+import { User } from "../models";
+import bcrypt from "bcrypt";
+
+export const authtenticationOptions: AuthenticationOptions = {
+  authenticate: async (email, password) => {
+    const user = await User.findOne({ where: { email } });
+
+    if (user && user.role === "admin") {
+      const matched = await bcrypt.compare(password, user.password);
+
+      if (matched) {
+        return user;
+      }
+    }
+
+    return false;
+  },
+  cookiePassword: "senha-do-cookie",
+};
+```
+
+- Agora, basta incluir os objetos exportados no arquivo de configuração:
+
+```typescript
+// src/adminjs/index.ts
+
+// ...
+import { dashboardOptions } from "./dashboard";
+import { brandingOptions } from "./branding";
+import { authtenticationOptions } from "./authentication";
+
+AdminJs.registerAdapter(AdminJsSequelize);
+
+export const adminJs = new AdminJs({
+  databases: [database],
+  resources: adminJsResources,
+  rootPath: "/admin",
+  dashboard: dashboardOptions,
+  locale: locale,
+  branding: brandingOptions,
+});
+
+export const adminJsRouter = AdminJsExpress.buildAuthenticatedRouter(
+  adminJs,
+  authtenticationOptions,
+  null,
+  { resave: false, saveUninitialized: false }
+);
+```
+
+- Teste a aplicação e veja que seu funcionamento continua inalterado.
