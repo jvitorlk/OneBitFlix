@@ -856,3 +856,223 @@ npx sequelize-cli db:seed:all
 ```
 
 - Esses seeds não irão incluir as capas dos cursos, mas você pode fazer isso através do painel do AdminJS.
+
+## 7 - Tabela de Episódios
+
+- Comece gerando a migration para a tabela episodes através da sequelize-cli:
+
+```javascript
+npx sequelize-cli migration:generate --name create-episodes-table
+```
+
+- Adicione o conteúdo da migration:
+
+```javascript
+// src/database/migrations/XXXXXXXXXXXXXX-create-episodes-table.js
+
+"use strict";
+
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable("episodes", {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.DataTypes.INTEGER,
+      },
+      name: {
+        allowNull: false,
+        type: Sequelize.DataTypes.STRING,
+      },
+      synopsis: {
+        allowNull: false,
+        type: Sequelize.DataTypes.TEXT,
+      },
+      order: {
+        allowNull: false,
+        type: Sequelize.DataTypes.INTEGER,
+      },
+      video_url: {
+        type: Sequelize.DataTypes.STRING,
+      },
+      seconds_long: {
+        type: Sequelize.DataTypes.INTEGER,
+      },
+      course_id: {
+        allowNull: false,
+        type: Sequelize.DataTypes.INTEGER,
+        references: { model: "courses", key: "id" },
+        onUpdate: "CASCADE",
+        onDelete: "RESTRICT",
+      },
+      created_at: {
+        allowNull: false,
+        type: Sequelize.DATE,
+      },
+      updated_at: {
+        allowNull: false,
+        type: Sequelize.DATE,
+      },
+    });
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable("episodes");
+  },
+};
+```
+
+- Não se esqueça de executar a migration:
+
+```typescript
+npx sequelize-cli db:migrate
+```
+
+- Crie o model Episode.ts e adicione o seu conteúdo:
+
+```typescript
+// src/models/Episode.ts
+
+import { sequelize } from "../database";
+import { DataTypes, Model, Optional } from "sequelize";
+
+export interface Episode {
+  id: number;
+  name: string;
+  synopsis: string;
+  order: number;
+  videoUrl: string;
+  secondsLong: number;
+  courseId: number;
+}
+
+export interface EpisodeCreationAttributes
+  extends Optional<Episode, "id" | "videoUrl" | "secondsLong"> {}
+
+export interface EpisodeInstance
+  extends Model<Episode, EpisodeCreationAttributes>,
+    Episode {}
+
+export const Episode = sequelize.define<EpisodeInstance, Episode>("Episode", {
+  id: {
+    allowNull: false,
+    autoIncrement: true,
+    primaryKey: true,
+    type: DataTypes.INTEGER,
+  },
+  name: {
+    allowNull: false,
+    type: DataTypes.STRING,
+  },
+  synopsis: {
+    allowNull: false,
+    type: DataTypes.TEXT,
+  },
+  order: {
+    allowNull: false,
+    type: DataTypes.STRING,
+  },
+  videoUrl: {
+    type: DataTypes.STRING,
+  },
+  secondsLong: {
+    type: DataTypes.INTEGER,
+  },
+  courseId: {
+    allowNull: false,
+    type: DataTypes.INTEGER,
+    references: { model: "courses", key: "id" },
+    onUpdate: "CASCADE",
+    onDelete: "RESTRICT",
+  },
+});
+```
+
+- E agora no arquivo index.ts da pasta model inclua as associações de Episode e Course:
+
+```typescript
+// src/models/index.ts
+
+import { Category } from "./Category";
+import { Course } from "./Course";
+import { Episode } from "./Episode";
+
+Category.hasMany(Course);
+
+Course.belongsTo(Category);
+Course.hasMany(Episode);
+
+Episode.belongsTo(Course);
+
+export { Category, Course, Episode };
+```
+
+- Na pasta resources crie o arquivo episode.ts para as opções do recurso episodes:
+
+```typescript
+// src/adminjs/resources/episode.ts
+
+import { ResourceOptions } from "adminjs";
+
+export const episodeResourceOptions: ResourceOptions = {
+  navigation: "Catálogo",
+  editProperties: [
+    "name",
+    "synopsis",
+    "courseId",
+    "order",
+    "uploadVideo",
+    "secondsLong",
+  ],
+  filterProperties: [
+    "name",
+    "synopsis",
+    "courseId",
+    "secondsLong",
+    "createdAt",
+    "updatedAt",
+  ],
+  listProperties: ["id", "name", "courseId", "order", "secondsLong"],
+  showProperties: [
+    "id",
+    "name",
+    "synopsis",
+    "courseId",
+    "order",
+    "videoUrl",
+    "secondsLong",
+    "createdAt",
+    "updatedAt",
+  ],
+};
+```
+
+- E no arquivo resources.ts inclua o recurso e suas opções:
+
+```typescript
+// src/adminjs/resources.ts
+
+import { ResourceWithOptions } from "adminjs";
+import { Category, Course, Episode } from "../../models";
+import { categoryResourceOptions } from "./category";
+import { courseResourceOptions } from "./course";
+import { episodeResourceOptions } from "./episode";
+
+export const adminJsResources: ResourceWithOptions[] = [
+  {
+    resource: Course,
+    options: courseResourceOptions,
+  },
+  {
+    resource: Episode,
+    options: episodeResourceOptions,
+  },
+  {
+    resource: Category,
+    options: categoryResourceOptions,
+  },
+];
+```
+
+- Já é possível testar a aplicação cadastrando alguns episódios pelo painel administrativo. Não se preocupe com questões como o upload dos vídeos no momento, as implementares nas próximas aulas. Por enquanto tente cadastrar episódios com alguns valores fictícios.
