@@ -1174,3 +1174,109 @@ uploads/videos```
 ````
 
 - Além disso, é possível garantir que a pasta upload seja mantida no repositório mesmo estando vazia ao criar um arquivo .gitkeep dentro dela.
+
+## 9 - Upload das Capas dos Cursos
+
+- Primeiro, adicione no arquivo de resource course.ts um array de features que irá conter a feature de upload e então exporte-a:
+  - Obs.: As capas dos cursos poderão ser públicas para facilitar o acesso sem nenhum problema.
+
+```typescript
+// src/adminjs/resources/course.ts
+
+import { FeatureType, ResourceOptions } from "adminjs";
+import uploadFileFeature from "@adminjs/upload";
+import path from "path";
+
+// ...
+
+export const courseResourceFeatures: FeatureType[] = [
+  uploadFileFeature({
+    provider: {
+      local: {
+        bucket: path.join(__dirname, "../../../public"),
+      },
+    },
+    properties: {
+      key: "thumbnailUrl",
+      file: "uploadThumbnail",
+    },
+    uploadPath: (record, filename) =>
+      `thumbnails/course-${record.get("id")}/${filename}`,
+  }),
+];
+```
+
+- Agora vamos nos certificar de que as propriedades editáveis incluem a propriedade que armazenará o arquivo, ou seja, “uploadThumbnail”:
+
+```typescript
+// src/adminjs/resources/course.ts
+
+import { FeatureType, ResourceOptions } from "adminjs";
+import uploadFileFeature from "@adminjs/upload";
+import path from "path";
+
+export const courseResourceOptions: ResourceOptions = {
+  navigation: "Catálogo",
+  editProperties: [
+    "name",
+    "synopsis",
+    "uploadThumbnail",
+    "featured",
+    "categoryId",
+  ],
+  filterProperties: [
+    "name",
+    "synopsis",
+    "featured",
+    "categoryId",
+    "createdAt",
+    "updatedAt",
+  ],
+  listProperties: ["id", "name", "featured", "categoryId"],
+  showProperties: [
+    "id",
+    "name",
+    "synopsis",
+    "featured",
+    "thumbnailUrl",
+    "categoryId",
+    "createdAt",
+    "updatedAt",
+  ],
+};
+
+// ...
+```
+
+- E então adicionamos as features exportadas ao arquivo resources.ts:
+
+````typescript
+// src/adminjs/resources/index.ts
+
+// ...
+
+import { courseResourceFeatures, courseResourceOptions } from './course'
+import { episodeResourceFeatures, episodeResourceOptions } from './episode'
+
+const adminJsResources: ResourceWithOptions[] = [
+  {
+    resource: Course,
+    options: courseResourceOptions,
+    features: courseResourceFeatures
+  },
+  {
+    resource: Episode,
+    options: episodeResourceOptions,
+    features: episodeResourceFeatures
+  },```
+````
+
+- Por fim, se estiver utilizando Git em seu projeto, adicione a pasta uploads/thumbnails ao seu arquivo .gitignore:
+
+```text
+node_modules
+uploads/videos
+public/thumbnails
+```
+
+- Tente atualizar algum curso ou criar um novo e subir sua imagem de capa para testar o funcionamento da feature.
