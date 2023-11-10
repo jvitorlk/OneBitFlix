@@ -1611,3 +1611,59 @@ module.exports = {
 ```typescript
 npx sequelize-cli db:seed --seed src/database/seeders/XXXXXXXXXXXXXX-create-admin-user.js
 ```
+
+## 11 - Autenticação e Tela de Login
+
+- Para adicionarmos autenticação ao painel do AdminJs só precisamos trocar o método que constrói as rotas. Substituímos o “buildRouter” para “buildAuthenticatedRouter” no arquivo de configuração do AdminJs:
+  - Obs.: Repare que o método “buildAuthenticatedRouter” recebe um argumento a mais, que é um objeto contendo a função de autenticação e uma chave para garantir a segurança do cookie de autenticação. Também é possível passar um nome opcionalmente.
+    Usaremos variáveis de ambiente no futuro para não deixar nossa senha do cookie exposta.
+
+```typescript
+// src/adminjs/index.ts
+
+// ...
+
+export const adminJsRouter = AdminJsExpress.buildAuthenticatedRouter(adminJs, {
+  authenticate: () => {},
+  cookiePassword: "",
+});
+```
+
+- Dentro do método de autenticação adicione uma função recebe como parâmetros o email e a senha digitados na tela de login que será incluída automaticamente. Essa função deve procurar por um usuário e verificar se suas credenciais estão corretas.
+- Também vamos incluir uma string qualquer (que será atualizada posteriormente) para servir de senha para o cookie:
+
+```typescript
+// src/adminjs/index.ts
+
+import { User } from "../models";
+import bcrypt from "bcrypt";
+
+// ...
+
+export const adminJsRouter = AdminJsExpress.buildAuthenticatedRouter(
+  adminJs,
+  {
+    authenticate: async (email, password) => {
+      const user = await User.findOne({ where: { email } });
+
+      if (user && user.role === "admin") {
+        const matched = await bcrypt.compare(password, user.password);
+
+        if (matched) {
+          return user;
+        }
+      }
+
+      return false;
+    },
+    cookiePassword: "senha-do-cookie",
+  },
+  null,
+  {
+    resave: false,
+    saveUninitialized: false,
+  }
+);
+```
+
+- E isso é tudo que precisamos para incluir autenticação ao nosso painel. Navegue até o painel e veja que agora é necessário inserir seu email e senha para entrar. Certifique-se de que você possui um usuário devidamente cadastrado.
