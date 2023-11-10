@@ -1280,3 +1280,334 @@ public/thumbnails
 ```
 
 - Tente atualizar algum curso ou criar um novo e subir sua imagem de capa para testar o funcionamento da feature.
+
+## 10 - Tabela de Usuários
+
+- Comece criando a migration para a tabela de usuários:
+
+````typescript
+npx sequelize-cli migration:generate --name create-users-table```
+````
+
+- Então, adicione o conteúdo da migration:
+
+```typescript
+// src/database/migrations/XXXXXXXXXXXXXX-create-users-table
+
+"use strict";
+
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    await queryInterface.createTable("users", {
+      id: {
+        allowNull: false,
+        autoIncrement: true,
+        primaryKey: true,
+        type: Sequelize.DataTypes.INTEGER,
+      },
+      first_name: {
+        allowNull: false,
+        type: Sequelize.DataTypes.STRING,
+      },
+      last_name: {
+        allowNull: false,
+        type: Sequelize.DataTypes.STRING,
+      },
+      phone: {
+        allowNull: false,
+        type: Sequelize.DataTypes.STRING,
+      },
+      birth: {
+        allowNull: false,
+        type: Sequelize.DataTypes.DATE,
+      },
+      email: {
+        allowNull: false,
+        unique: true,
+        type: Sequelize.DataTypes.STRING,
+      },
+      password: {
+        allowNull: false,
+        type: Sequelize.DataTypes.STRING,
+      },
+      role: {
+        allowNull: false,
+        type: Sequelize.DataTypes.STRING,
+      },
+      created_at: {
+        allowNull: false,
+        type: Sequelize.DATE,
+      },
+      updated_at: {
+        allowNull: false,
+        type: Sequelize.DATE,
+      },
+    });
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.dropTable("users");
+  },
+};
+```
+
+- E execute a migration, criando a tabela no banco de dados:
+
+```typsescript
+npx sequelize-cli db:migrate
+```
+
+- Agora, crie o model User.ts na pasta models e adicione o seu conteúdo:
+
+```typescript
+// src/models/User.ts
+
+import { sequelize } from "../database";
+import { DataTypes, Model, Optional } from "sequelize";
+
+export interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  birth: Date;
+  email: string;
+  password: string;
+  role: "admin" | "user";
+}
+
+export interface UserCreationAttributes extends Optional<User, "id"> {}
+
+export interface UserInstance
+  extends Model<User, UserCreationAttributes>,
+    User {}
+
+export const User = sequelize.define<UserInstance, User>("User", {
+  id: {
+    allowNull: false,
+    autoIncrement: true,
+    primaryKey: true,
+    type: DataTypes.INTEGER,
+  },
+  firstName: {
+    allowNull: false,
+    type: DataTypes.STRING,
+  },
+  lastName: {
+    allowNull: false,
+    type: DataTypes.STRING,
+  },
+  phone: {
+    allowNull: false,
+    type: DataTypes.STRING,
+  },
+  birth: {
+    allowNull: false,
+    type: DataTypes.DATE,
+  },
+  email: {
+    allowNull: false,
+    unique: true,
+    type: DataTypes.STRING,
+    validate: {
+      isEmail: true,
+    },
+  },
+  password: {
+    allowNull: false,
+    type: DataTypes.STRING,
+  },
+  role: {
+    allowNull: false,
+    type: DataTypes.STRING,
+    validate: {
+      isIn: [["admin", "user"]],
+    },
+  },
+});
+```
+
+- Adicione o model ao arquivo index.ts da pasta models, pois futuramente o utilizaremos para registrar as associações da tabela users:
+
+```typescript
+// src/models/index.ts
+
+import { User } from "./User";
+
+// ...
+
+export { Category, Course, Episode, User };
+```
+
+- Com o model criado podemos adicionar o resource ao painel do AdminJS. Crie o arquivo user.ts em resources e adicione o seguinte código:
+  - Obs.: Repare que nesse resource estamos utilizando algumas opções extras. Através da propriedade “properties” podemos personalizar o comportamento de cada campo individualmente, alterando manualmente seu comportamento no painel.
+
+```typescript
+// src/adminjs/resources/user.ts
+
+import { ResourceOptions } from "adminjs";
+
+const userResourceOptions: ResourceOptions = {
+  navigation: "Administração",
+  properties: {
+    birth: {
+      type: "date",
+    },
+    password: {
+      type: "password",
+    },
+    role: {
+      availableValues: [
+        { value: "admin", label: "Administrador" },
+        { value: "user", label: "Usuário Padrão" },
+      ],
+    },
+  },
+  editProperties: [
+    "firstName",
+    "lastName",
+    "phone",
+    "birth",
+    "email",
+    "password",
+    "role",
+  ],
+  filterProperties: [
+    "firstName",
+    "lastName",
+    "phone",
+    "birth",
+    "email",
+    "role",
+    "createdAt",
+    "updatedAt",
+  ],
+  listProperties: ["id", "firstName", "email", "role"],
+  showProperties: [
+    "id",
+    "firstName",
+    "lastName",
+    "phone",
+    "birth",
+    "email",
+    "role",
+    "createdAt",
+    "updatedAt",
+  ],
+};
+
+export { userResourceOptions };
+```
+
+- Por fim, inclua o resource no arquivo resources.ts:
+
+```typescript
+// src/adminjs/resources/index.ts
+
+// ...
+
+import { userResourceOptions } from "./user";
+
+// ..
+
+  {
+    resource: Category,
+    options: categoryResourceOptions
+  },
+  {
+    resource: User,
+    options: userResourceOptions
+  }
+]
+```
+
+- Já podemos testar o cadastro de usuários e ver que está funcionando. Crie um usuário com a role ’admin’ para utilizarmos na aula sobre autenticação.
+- No entanto, se olharmos o usuário cadastrado no banco de dados veremos que sua senha está exposta, o que não é uma boa prática de segurança. Vamos cuidar para que ela seja encriptada antes de o usuário ser salvo no banco de dados. Para isso precisamos instalar a biblioteca “bcrypt”. Instale-a com o comando abaixo:
+
+```typescript
+npm install bcrypt@~5.0.1
+```
+
+- Além disso, o bcrypt não possui tipagens, portanto precisamos instalar seus tipos separadamente através do @types:
+
+```typescript
+npm install --save-dev @types/bcrypt@~5.0.0
+```
+
+- Com o bcrypt instalado podemos incluir um hook em nosso model user para executar uma ação sempre antes de um novo registro ser salvo. Adicione o hook beforeSave nas opções do segundo parâmetro do método define:
+
+```typescript
+// src/models/user.ts
+
+import bcrypt from 'bcrypt'
+
+// ...
+
+		role: {
+	    allowNull: false,
+	    type: DataTypes.STRING
+	  }
+	}, {
+  hooks: {
+    beforeSave: async (user) => {
+      if (user.isNewRecord || user.changed('password')) {
+        user.password = await bcrypt.hash(user.password.toString(), 10);
+      }
+    }
+  }
+})
+
+export { User }
+```
+
+- Agora, ao tentar novamente cadastrar um usuário veremos no banco de dados que sua senha não está mais exposta, salvamos apenas o hash. Com isso concluímos o model user.
+- Nós também podemos criar um seeder responsável por criar um usuário administrador, caso ele não exista:
+
+```typescript
+npx sequelize-cli seed:generate --name create-admin-user
+```
+
+- Dentro do seeder poderemos adicionar o seguinte código:
+  Obs.: Repare que precisamos utilizar o bcrypt manualmente dentro do seeder, pois não estamos utilizando um model, estamos realizando uma query um pouco mais “manual”.
+  Obs².: Repare também que podemos especificar o bulkDelete do método down para funcionar especificamente no usuário criado pelo método up.
+
+```typescript
+// src/database/seeders/XXXXXXXXXXXXXX-create-admin-user.js
+
+const bcrypt = require("bcrypt");
+
+("use strict");
+
+module.exports = {
+  async up(queryInterface, Sequelize) {
+    const hashedPassword = await bcrypt.hash("123456", 10);
+
+    await queryInterface.bulkInsert("users", [
+      {
+        first_name: "Admin",
+        last_name: "User",
+        phone: "555-5555",
+        birth: "1990-01-01",
+        email: "admin@email.com",
+        password: hashedPassword,
+        role: "admin",
+        created_at: new Date(),
+        updated_at: new Date(),
+      },
+    ]);
+  },
+
+  async down(queryInterface, Sequelize) {
+    await queryInterface.bulkDelete("users", null, {
+      where: { email: "admin@email.com" },
+    });
+  },
+};
+```
+
+- Agora podemos executar o seeder:
+  Obs.: Repare que podemos executar os seeders individualmente se quisermos através da flag --seed. Lembre-se de utilizar a timestamp correta do nome do seu seeder.
+
+```typescript
+npx sequelize-cli db:seed --seed src/database/seeders/XXXXXXXXXXXXXX-create-admin-user.js
+```
