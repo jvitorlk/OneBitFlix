@@ -1076,3 +1076,101 @@ export const adminJsResources: ResourceWithOptions[] = [
 ```
 
 - Já é possível testar a aplicação cadastrando alguns episódios pelo painel administrativo. Não se preocupe com questões como o upload dos vídeos no momento, as implementares nas próximas aulas. Por enquanto tente cadastrar episódios com alguns valores fictícios.
+
+## 8 - Upload de Arquivos no AdminJS
+
+Nesta aula iremos adicionar a funcionalidade de upload. Como já temos o @adminjs/upload instalado em nosso projeto passaremos diretamente para sua configuração e inclusão.
+
+- No arquivo episode.ts da pasta resources adicionaremos as configuração da feature de upload. Adicione no arquivo o código mostrado abaixo:
+  Vale destacar que:
+  - uploadFileFeature é uma função do @adminjs/upload que gera para nós uma configuração válida para o funcionamento do módulo de upload. Ela recebe um objeto de configuração como parâmetro.
+  - A propriedade “provider” define onde iremos armazenar nossos arquivos. Armazenaremos localmente e a única opção que precisamos especificar é o bucket, ou a pasta onde serão salvos os arquivos.
+  - A propriedade “properties” permite configurar as propriedades geradas pelo próprio AdminJS a partir de dados do upload, como caminho relativo do arquivo, caminho absoluto, nome, tamanho, etc. Usaremos apenas “key” para o caminho relativo e “file” para a propriedade virtual que será usada no frontend para armazenar o arquivo.
+  - A propriedade “uploadPath” contém a função que gera o caminho do arquivo dentro da pasta de uploads. Podemos personalizar esse caminho para termos uma estrutura de uploads mais organizada.
+- Também é necessário verificar o campo de upload nas propriedades dos formulário dentro do objeto de opções do recurso. Onde colocaríamos a propriedade “videoUrl” agora deve ser a propriedade “uploadVideo” como especificamos nas opções da feature. Essa propriedade virtual permitirá utilizar o componente DropZone para upload de arquivos.
+  - Obs.: Este nome da propriedade virtual é arbitrário, poderia ser qualquer nome que preferíssemos desde que fosse referenciado corretamente.
+
+```typescript
+// src/adminjs/resources/episode.ts
+
+import path from "path";
+import uploadFileFeature from "@adminjs/upload";
+import { FeatureType, ResourceOptions } from "adminjs";
+
+export const episodeResourceOptions: ResourceOptions = {
+  navigation: "Catálogo",
+  editProperties: [
+    "name",
+    "synopsis",
+    "courseId",
+    "order",
+    "uploadVideo",
+    "secondsLong",
+  ],
+  filterProperties: [
+    "name",
+    "synopsis",
+    "courseId",
+    "secondsLong",
+    "createdAt",
+    "updatedAt",
+  ],
+  listProperties: ["id", "name", "courseId", "order", "secondsLong"],
+  showProperties: [
+    "id",
+    "name",
+    "synopsis",
+    "courseId",
+    "order",
+    "videoUrl",
+    "secondsLong",
+    "createdAt",
+    "updatedAt",
+  ],
+};
+
+export const episodeResourceFeatures: FeatureType[] = [
+  uploadFileFeature({
+    provider: {
+      local: {
+        bucket: path.join(__dirname, "../../../uploads"),
+      },
+    },
+    properties: {
+      key: "videoUrl",
+      file: "uploadVideo",
+    },
+    uploadPath: (record, filename) =>
+      `videos/course-${record.get("courseId")}/${filename}`,
+  }),
+];
+```
+
+- Após adicionar as opções da feature de upload basta inclui-las em index.ts junto com as outras opções do recurso:
+
+```typescript
+// src/adminjs/resources/index.ts
+
+// ...
+import { episodeResourceFeatures, episodeResourceOptions } from './episode'
+
+// ...
+	},
+	{
+    resource: Episode,
+    options: episodeResourceOptions,
+    features: episodeResourceFeatures
+  },
+	{
+//...
+```
+
+- Com a feature incluída no AdminJS já será possível fazer os uploads. Crie uma pasta “uploads” na raiz do projeto ao lado de “public” e “src” para armazenarmos os arquivos da nossa aplicação e tente criar um episódio no painel administrativo.
+- Por último, se estiver usando Git em seu projeto, não se esqueça de adicionar a pasta uplolads/videos em seu arquivo .gitignore:
+
+````text
+node_modules
+uploads/videos```
+````
+
+- Além disso, é possível garantir que a pasta upload seja mantida no repositório mesmo estando vazia ao criar um arquivo .gitkeep dentro dela.
