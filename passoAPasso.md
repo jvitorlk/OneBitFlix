@@ -1832,3 +1832,216 @@ const adminJs = new AdminJs({
 ```
 
 - E isso é tudo! Agora basta acessar o painel e conferir as traduções.
+
+## 13 - Personalizando o Dashboard
+
+- Para começar a personalizar a tela inicial do AdminJs precisamos atualizar o arquivo de configuração para incluir a propriedade “dashboard”. Essa propriedade deve receber o componente React que iremos criar para ser exibido, e ele precisa ser incluído através do método bundle do próprio AdminJs como no código abaixo:
+
+```typescript
+// src/adminjs/index.ts
+
+// ...
+
+export const adminJs = new AdminJs({
+  databases: [database],
+  resources: adminJsResources,
+  rootPath: '/admin',
+  dashboard: {
+    component: AdminJs.bundle('./components/Dashboard')
+  },
+  locale: locale,
+
+// ...
+```
+
+- Agora crie uma pasta components dentro de adminjs e nela crie o arquivo Dashboard.tsx, que será o nosso componente. Dentro dele adicione o seguinte código:
+
+```typescript
+// src/adminjs/components/Dashboard.tsx
+
+import React from "react";
+import { H1 } from "@adminjs/design-system";
+
+export default function Dashboard() {
+  return (
+    <section style={{ padding: "1.5rem" }}>
+      <H1>Seja bem-vindo!</H1>
+    </section>
+  );
+}
+```
+
+- Antes de avançar também precisamos atualizar nosso arquivo de configuração do compilador do typescript para incluir suporte ao JSX do React:
+
+```typescript
+// tsconfig.json
+
+{
+  "compilerOptions": {
+    "target": "es2016",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "jsx": "react"
+  }
+}
+```
+
+- Agora já podemos testar e ver que nossa página inicial não é mais a padrão do AdminJs, mas o componente que criamos contendo apenas um título.
+- Vamos então incluir alguns dados dinâmicos ao dashboard para deixá-lo mais interessante. Para isso, adicione a propriedade handler às opções de configuração do dashboard com o seguinte conteúdo:
+  - Obs.: Veja que a propriedade handler é do tipo PageHandler do próprio AdminJS. Ela recebe como parâmetros a requisição, a resposta e um contexto que contém informações sobre a instância do AdminJS, o usuário atual e alguns helpers para as views.
+  - Nesse handler estamos obtendo a quantidade de registros de algumas tabelas e então enviando-os na resposta em um objeto.
+
+```typescript
+// src/adminjs/index.ts
+
+// ...
+import { Category, Course, Episode, User } from '../models'
+// ...
+
+export const adminJs = new AdminJs({
+  databases: [database],
+  resources: adminJsResources,
+  rootPath: '/admin',
+  dashboard: {
+    component: AdminJs.bundle('./components/Dashboard'),
+		handler: async (req, res, context) => {
+      const courses = await Course.count()
+      const episodes = await Episode.count()
+      const category = await Category.count()
+      const standardUsers = await User.count({ where: { role: 'user' } })
+
+      res.json({
+        'Cursos': courses,
+        'Episódios': episodes,
+        'Categorias': category,
+        'Usuários': standardUsers
+      })
+    },
+  },
+  locale: locale,
+
+// ...
+```
+
+- No componente react, inclua a chamada ao handler criado utilizando a classe ApiClient do AdminJS. Por baixo dos panos o AdminJS utilizará o axios para fazer as requisições, portanto as respostas virão no formato do axios. Teste a requisição da seguinte forma:
+
+```typescript
+// src/adminjs/components/Dashboard.tsx
+
+import React, { useEffect } from "react";
+import { H1 } from "@adminjs/design-system";
+import { ApiClient } from "adminjs";
+
+export default function Dashboard() {
+  const api = new ApiClient();
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  async function fetchDashboardData() {
+    const res = await api.getDashboard();
+    console.log(res.data);
+  }
+
+  return (
+    <section style={{ padding: "1.5rem" }}>
+      <H1>Seja bem-vindo!</H1>
+    </section>
+  );
+}
+```
+
+- Ao olharmos o console do navegador vemos a resposta da função handler contendo os nomes dos recursos como chave e suas quantidades como valor em um objeto.
+- Vamos agora fazer um pouco mais. Adicione um state para armazenar os recursos e então exiba-os em uma tabela:
+  - Obs.: No corpo da tabela estamos transformando o objeto que recebemos em um array de pares [chave, valor] para criarmos as linhas automaticamente através de um loop.
+
+```typescript
+// src/adminjs/components/Dashboard.tsx
+
+import React, { useEffect, useState } from "react";
+import {
+  H1,
+  H2,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+} from "@adminjs/design-system";
+import { ApiClient } from "adminjs";
+
+export default function Dashboard() {
+  const [resources, setResources] = useState<{ [key: string]: number }>();
+  const api = new ApiClient();
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  async function fetchDashboardData() {
+    const res = await api.getDashboard();
+    console.log(res.data);
+
+    setResources(res.data);
+  }
+
+  return (
+    <section style={{ padding: "1.5rem" }}>
+      <H1>Seja bem-vindo!</H1>
+
+      <section style={{ backgroundColor: "#FFF", padding: "1.5rem" }}>
+        <H2>Resumo</H2>
+        <Table>
+          <TableHead>
+            <TableRow style={{ backgroundColor: "#FF0043" }}>
+              <TableCell style={{ color: "#FFF" }}>Recurso</TableCell>
+              <TableCell style={{ color: "#FFF" }}>Registros</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {resources ? (
+              Object.entries(resources).map(([resource, count]) => (
+                <TableRow key={resource}>
+                  <TableCell>{resource}</TableCell>
+                  <TableCell>{count}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <></>
+            )}
+          </TableBody>
+        </Table>
+      </section>
+    </section>
+  );
+}
+```
+
+- Agora teste e veja os recursos e suas quantidades de registros aparecem em uma tabela.
+- Para concluir, vamos utilizar um hook do próprio AdminJS para obter o usuário logado atual, o hook useCurrentAdmin. Com ele poderemos mostrar na tela de boas-vindas o primeiro nome do usuário
+
+```typescript
+// src/adminjs/components/Dashboard.tsx
+
+// ...
+import { ApiClient, useCurrentAdmin } from 'adminjs'
+
+export default function Dashboard() {
+  const [currentAdmin] = useCurrentAdmin()
+  const [resources, setResources] = useState<{ [key: string]: number }>()
+
+// ...
+
+return (
+    <section style={{ padding: '1.5rem' }}>
+      <H1>Seja bem-vindo, {currentAdmin?.firstName}!</H1>
+
+      <section style={{ backgroundColor: '#FFF', padding: '1.5rem' }}>
+        <H2>Resumo</H2>
+
+// ...
+```
